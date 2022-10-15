@@ -33,11 +33,11 @@ workload=site.ycsb.workloads.CoreWorkload
 recordcount=17000000
 operationcount=9000000
 
-# 3.6kB average value size
+# 34B average value size
 # The number of fields in a record
-fieldcount=10
+fieldcount=1
 # The size of each field (in bytes)
-fieldlength=360
+fieldlength=34
 
 # Should read all fields
 readallfields=true
