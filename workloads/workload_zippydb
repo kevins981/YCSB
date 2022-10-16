@@ -30,8 +30,8 @@
 # The name of the workload class to use
 workload=site.ycsb.workloads.CoreWorkload
 
-recordcount=17000000
-operationcount=9000000
+recordcount=170000000
+operationcount=10000000
 
 # 34B average value size
 # The number of fields in a record
