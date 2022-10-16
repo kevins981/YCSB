@@ -5,9 +5,11 @@ REDIS_DIR="/ssd1/songxin8/thesis/keyValStore/redis/"
 REDIS_CLI="${REDIS_DIR}/src/redis-cli"
 YCSB_DIR="/ssd1/songxin8/thesis/keyValStore/YCSB/"
 WORKLOAD_DIR="${YCSB_DIR}/workloads/" 
-RESULT_DIR="/ssd1/songxin8/thesis/keyValStore/YCSB/exp/test/"
 
-declare -a WORKLOAD_LIST=("workload_zippydb_small")
+RESULT_DIR="/ssd1/songxin8/thesis/keyValStore/YCSB/exp/sweep/"
+
+declare -a WORKLOAD_LIST=("zippydb" "up2x")
+#declare -a WORKLOAD_LIST=("zippydb")
 
 clean_up () {
     echo "Cleaning up. Kernel PID is $EXE_PID, numastat PID is $LOG_PID."
@@ -30,29 +32,35 @@ run_redis () {
   WORKLOAD=$2
   NODE=$3
 
-  # start redis server
+  # change to dir with rdb dumps
+  pushd $REDIS_DIR
+
+  # start redis server.
+  # there should be a corresponding confg file named redis_${WORKLOAD}.conf
+  # e.g. for zippydb, we use redis_zippydb.conf to indicate the RDB file to load.
   /usr/bin/time -v /usr/bin/numactl --membind=${NODE} --cpunodebind=0 \
-      -- $REDIS_DIR/src/redis-server $REDIS_DIR/redis.conf &> ${OUTFILE}_redis_out &
+      -- $REDIS_DIR/src/redis-server $REDIS_DIR/redis_${WORKLOAD}.conf &> ${OUTFILE}_redis_out &
 
   # PID of time command
   TIME_PID=$! 
   # get PID of actual kernel, which is a child of time. 
   # This PID is needed for the numastat command
   EXE_PID=$(pgrep -P $TIME_PID)
+
+  echo "Waiting 5min for redis to finish loading keys from RDB..."
+  # wait for RDB loading to finish. a 40GB redis-server takes ~3min to load from RDB.
+  sleep 300
+
   echo "redis server PID is ${EXE_PID}"
   echo "start" > ${OUTFILE}_numastat 
   while true; do numastat -p $EXE_PID >> ${OUTFILE}_numastat; sleep 5; done &
   LOG_PID=$!
 
-  sleep 2 # wait for redis server to go up
+  sleep 10 # wait for redis server to go up
 
+  popd
   # run ycsb load phase
   pushd $YCSB_DIR # YCSB must be executed in its own directory
-
-  # YCSB process should only run on NUMA node 0
-  /usr/bin/numactl --membind=0 --cpunodebind=0 \
-      ./bin/ycsb load redis -s -P workloads/$WORKLOAD -p "redis.host=127.0.0.1" -p "redis.port=6379" \
-      -threads 16 &> ${OUTFILE}_ycsb_load
 
   # record redis memory stat
   $REDIS_CLI info memory &> ${OUTFILE}_redis_info_memory
@@ -62,7 +70,7 @@ run_redis () {
 
   # run ycsb run phase
   /usr/bin/numactl --membind=0 --cpunodebind=0 \
-      ./bin/ycsb run redis -s -P workloads/$WORKLOAD -p "redis.host=127.0.0.1" -p "redis.port=6379" \
+      ./bin/ycsb run redis -s -P workloads/workload_${WORKLOAD} -p "redis.host=127.0.0.1" -p "redis.port=6379" \
       -threads 16 &> ${OUTFILE}_ycsb_run
 
   # shutdown redis server
@@ -89,6 +97,6 @@ for workload in "${WORKLOAD_LIST[@]}"
 do
   clean_cache
   run_redis "${RESULT_DIR}/${workload}_allnode0" $workload 0
-  #clean_cache
-  #run_redis "${RESULT_DIR}/${workload}_allnode1" $workload 1
+  clean_cache
+  run_redis "${RESULT_DIR}/${workload}_allnode1" $workload 1
 done
