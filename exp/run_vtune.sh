@@ -8,7 +8,8 @@ WORKING_DIR=$REDIS_DIR
 
 RESULT_DIR="/ssd1/songxin8/thesis/keyValStore/vtune/sweep/"
 
-declare -a WORKLOAD_LIST=("up2x" "zippydb")
+#declare -a WORKLOAD_LIST=("up2x" "zippydb")
+declare -a WORKLOAD_LIST=("up2x")
 
 clean_up () {
     echo "Cleaning up. Kernel PID is $EXE_PID, numastat PID is $LOG_PID."
@@ -31,12 +32,11 @@ run_redis_hotspot () {
   MEMNODE=$2
 
   # start redis server
-  LD_PRELOAD=/usr/lib/x86_64-linux-gnu/debug/libstdc++.so.6.0.28 /opt/intel/oneapi/vtune/2022.3.0/bin64/vtune -collect hotspots -start-paused -data-limit=5000 -result-dir ${RESULT_DIR}/${WORKLOAD}_hotspot_node${MEMNODE} --app-working-dir=${WORKING_DIR} -- /usr/bin/numactl --membind=${MEMNODE} --cpunodebind=0 $REDIS_DIR/src/redis-server $REDIS_DIR/redis_${WORKLOAD}.conf &
-  #echo "LD_PRELOAD=/usr/lib/x86_64-linux-gnu/debug/libstdc++.so.6.0.28 /opt/intel/oneapi/vtune/2022.3.0/bin64/vtune -collect hotspots -start-paused -data-limit=5000 -result-dir ${RESULT_DIR}/${WORKLOAD}_hotspot_node${MEMNODE} --app-working-dir=${WORKING_DIR} -- /usr/bin/numactl --membind=${MEMNODE} --cpunodebind=0 $REDIS_DIR/src/redis-server $REDIS_DIR/redis_${WORKLOAD}.conf &"
+  LD_PRELOAD=/usr/lib/x86_64-linux-gnu/debug/libstdc++.so.6.0.28 /opt/intel/oneapi/vtune/2022.3.0/bin64/vtune -collect hotspots -start-paused -data-limit=10000 -result-dir ${RESULT_DIR}/${WORKLOAD}_hotspot_node${MEMNODE} --app-working-dir=${WORKING_DIR} -- /usr/bin/numactl --membind=${MEMNODE} --cpunodebind=0 $REDIS_DIR/src/redis-server $REDIS_DIR/redis_${WORKLOAD}.conf &
   VTUNE_PID=$!
 
   echo "[INFO] Sleeping to wait for redis server to finish loading from RDB."
-  sleep 200 
+  sleep 500 
 
   pushd $YCSB_DIR # YCSB must be executed in its own directory
 
@@ -59,11 +59,11 @@ run_redis_memacc () {
   MEMNODE=$2
 
   # start redis server
-  LD_PRELOAD=/usr/lib/x86_64-linux-gnu/debug/libstdc++.so.6.0.28 /opt/intel/oneapi/vtune/2022.3.0/bin64/vtune -collect memory-access -start-paused -knob sampling-interval=10 -knob analyze-mem-objects=true -knob mem-object-size-min-thres=256 -knob analyze-openmp=true -data-limit=5000 -result-dir ${RESULT_DIR}/${WORKLOAD}_memacc_node${MEMNODE} --app-working-dir=${WORKING_DIR} -- /usr/bin/numactl --membind=${MEMNODE} --cpunodebind=0 $REDIS_DIR/src/redis-server $REDIS_DIR/redis_${WORKLOAD}.conf &
+  LD_PRELOAD=/usr/lib/x86_64-linux-gnu/debug/libstdc++.so.6.0.28 /opt/intel/oneapi/vtune/2022.3.0/bin64/vtune -collect memory-access -start-paused -knob sampling-interval=10 -knob analyze-mem-objects=true -knob mem-object-size-min-thres=256 -knob analyze-openmp=true -data-limit=10000 -result-dir ${RESULT_DIR}/${WORKLOAD}_memacc_node${MEMNODE} --app-working-dir=${WORKING_DIR} -- /usr/bin/numactl --membind=${MEMNODE} --cpunodebind=0 $REDIS_DIR/src/redis-server $REDIS_DIR/redis_${WORKLOAD}.conf &
   VTUNE_PID=$!
 
   echo "[INFO] Sleeping to wait for redis server to finish loading from RDB."
-  sleep 200 
+  sleep 500 
 
   pushd $YCSB_DIR # YCSB must be executed in its own directory
 
@@ -97,8 +97,10 @@ for workload in "${WORKLOAD_LIST[@]}"
 do
   clean_cache
   run_redis_hotspot $workload 0
-  #run_redis_memacc $workload 0
-  #clean_cache
-  #run_redis_hotspot $workload 1
-  #run_redis_memacc $workload 1
+  clean_cache
+  run_redis_memacc $workload 0
+  clean_cache
+  run_redis_hotspot $workload 1
+  clean_cache
+  run_redis_memacc $workload 1
 done
