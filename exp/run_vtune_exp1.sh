@@ -82,6 +82,39 @@ run_redis_memacc () {
   popd
 }
 
+run_redis_uarch () { 
+  WORKLOAD=$1
+  MEMNODE=$2
+
+  # start redis server
+  LD_PRELOAD=/usr/lib/x86_64-linux-gnu/debug/libstdc++.so.6.0.28 \
+      /opt/intel/oneapi/vtune/2022.3.0/bin64/vtune \
+      -collect uarch-exploration -start-paused -knob sampling-interval=10 -knob collect-memory-bandwidth=true \
+      -data-limit=10000 -result-dir ${RESULT_DIR}/${WORKLOAD}_uarch_node${MEMNODE} \
+      --app-working-dir=${WORKING_DIR} \
+      -- /usr/bin/numactl --membind=${MEMNODE} --cpunodebind=0 \
+      $REDIS_DIR/src/redis-server $REDIS_DIR/redis_${WORKLOAD}.conf &
+  VTUNE_PID=$!
+
+  echo "[INFO] Sleeping to wait for redis server to finish loading from RDB."
+  sleep 400 
+
+  pushd $YCSB_DIR # YCSB must be executed in its own directory
+
+  # resume vtunes data collection
+  /opt/intel/oneapi/vtune/2022.3.0/bin64/vtune -command resume -r ${RESULT_DIR}/${WORKLOAD}_uarch_node${MEMNODE}
+
+  # run ycsb run phase. The YCSB process should be on node 0
+  /usr/bin/numactl --membind=0 --cpunodebind=0 \
+      ./bin/ycsb run redis -s -P workloads/workload_$WORKLOAD -p "redis.host=127.0.0.1" -p "redis.port=6379" \
+      -threads 16
+
+  # shutdown redis server
+  $REDIS_CLI shutdown
+  wait $VTUNE_PID
+  popd
+}
+
 ##############
 # Script start
 ##############
@@ -97,9 +130,13 @@ do
   #clean_cache
   #run_redis_hotspot $workload 0
   #clean_cache
+  #run_redis_hotspot $workload 1
+  #clean_cache
   #run_redis_memacc $workload 0
+  #clean_cache
+  #run_redis_memacc $workload 1
   clean_cache
-  run_redis_hotspot $workload 1
-  clean_cache
-  run_redis_memacc $workload 1
+  run_redis_uarch $workload 0
+  #clean_cache
+  #run_redis_uarch $workload 1
 done
