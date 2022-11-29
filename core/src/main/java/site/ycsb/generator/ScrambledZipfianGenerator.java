@@ -92,6 +92,22 @@ zipfian constant
     }
   }
 
+  /**
+   * Create a zipfian generator for items between min and max (inclusive) for the specified zipfian 
+   * constant and precomputed zeta. The zeta value should be precomputed for the given zipfian constant (theta).
+   *
+   * @param min             The smallest integer to generate in the sequence.
+   * @param max             The largest integer to generate in the sequence.
+   * @param zipfianconstant The zipfian constant to use.
+   * @param zipfianzrta     The zipfian zeta value to use.
+   */
+  public ScrambledZipfianGenerator(long min, long max, double zipfianconstant, double zipfianzeta) {
+    this.min = min;
+    this.max = max;
+    itemcount = this.max - this.min + 1;
+    gen = new ZipfianGenerator(0, ITEM_COUNT, zipfianconstant, zipfianzeta);
+  }
+
   /**************************************************************************************************/
 
   /**

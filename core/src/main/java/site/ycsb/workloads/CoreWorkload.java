@@ -315,6 +315,26 @@ public class CoreWorkload extends Workload {
   public static final String INSERT_ORDER_PROPERTY_DEFAULT = "hashed";
 
   /**
+   * The theta value used for zipfian distribution, if a zipfian distribution is used.
+   */
+  public static final String ZIPFIAN_THETA = "zipfiantheta";
+
+  /**
+   * Default zipfian theta value.
+   */
+  public static final String ZIPFIAN_THETA_DEFAULT = "0.99";
+
+  /**
+   * The zeta value used for zipfian distribution. This value should be precomputed for a given theta.
+   */
+  public static final String ZIPFIAN_ZETA = "zipfianzeta";
+
+  /**
+   * Default zipfian zeta value, calculated based on the default theta value.
+   */
+  public static final String ZIPFIAN_ZETA_DEFAULT = "26.46902820178302";
+
+  /**
    * Percentage data items that constitute the hot set.
    */
   public static final String HOTSPOT_DATA_FRACTION = "hotspotdatafraction";
@@ -515,8 +535,13 @@ public class CoreWorkload extends Workload {
           p.getProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_PROPERTY_DEFAULT));
       int opcount = Integer.parseInt(p.getProperty(Client.OPERATION_COUNT_PROPERTY));
       int expectednewkeys = (int) ((opcount) * insertproportion * 2.0); // 2 is fudge factor
-
-      keychooser = new ScrambledZipfianGenerator(insertstart, insertstart + insertcount + expectednewkeys);
+      double zipfiantheta =
+          Double.parseDouble(p.getProperty(ZIPFIAN_THETA, ZIPFIAN_THETA_DEFAULT));
+      double zipfianzeta =
+          Double.parseDouble(p.getProperty(ZIPFIAN_ZETA, ZIPFIAN_ZETA_DEFAULT));
+      keychooser = 
+          new ScrambledZipfianGenerator(insertstart, insertstart + insertcount + expectednewkeys, 
+                                        zipfiantheta, zipfianzeta);
     } else if (requestdistrib.compareTo("latest") == 0) {
       keychooser = new SkewedLatestGenerator(transactioninsertkeysequence);
     } else if (requestdistrib.equals("hotspot")) {
