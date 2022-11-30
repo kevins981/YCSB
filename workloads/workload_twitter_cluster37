@@ -31,7 +31,7 @@
 workload=site.ycsb.workloads.CoreWorkload
 
 recordcount=9000000
-operationcount=10000000
+operationcount=65000000
 
 # The number of fields in a record
 fieldcount=1
@@ -51,8 +51,8 @@ fieldlengthdistribution=constant
 
 # What proportion of operations are reads
 readproportion=0.63
-updateproportion=0
-insertproportion=0.37
+updateproportion=0.37
+insertproportion=0
 readmodifywriteproportion=0 
 scanproportion=0
 
